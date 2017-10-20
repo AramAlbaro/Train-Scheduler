@@ -60,36 +60,7 @@ $("#add-employee-btn").on("click", function(event) {
 
 // 3. Create Firebase event for adding employee to the database and a row in the html when a user adds an entry
 database.ref('/timesheet').on("child_added", function(childSnapshot, prevChildKey) {
-
-  console.log(childSnapshot.val());
-
-  // Store everything into a variable.
-  var empName = childSnapshot.val().name;
-  var empRole = childSnapshot.val().role;
-  var empStart = childSnapshot.val().start;
-  var empRate = childSnapshot.val().rate;
-
-  // Employee Info
-  console.log(empName);
-  console.log(empRole);
-  console.log(empStart);
-  console.log(empRate);
-
-  // Prettify the employee start
-  var empStartPretty = moment.unix(empStart).format("MM/DD/YY");
-
-  // Calculate the months worked using hardcore math
-  // To calculate the months worked
-  var empMonths = moment().diff(moment.unix(empStart, "X"), "months");
-  console.log(empMonths);
-
-  // Calculate the total billed rate
-  var empBilled = empMonths * empRate;
-  console.log(empBilled);
-
-  // Add each train's data into the table
-  $("#employee-table > tbody").append("<tr><td>" + empName + "</td><td>" + empRole + "</td><td>" +
-  empStartPretty + "</td><td>" + empMonths + "</td><td>" + empRate + "</td><td>" + empBilled + "</td></tr>");
+  appendEmp(childSnapshot);
 });
 
 // Example Time Math
@@ -99,3 +70,53 @@ database.ref('/timesheet').on("child_added", function(childSnapshot, prevChildKe
 
 // We know that this is 15 months.
 // Now we will create code in moment.js to confirm that any attempt we use mets this test case
+
+function appendEmp (snap) {
+  var emp = snap.val()
+  var row = $('<tr>')
+  row.append($('<td>').text(emp.name))
+  row.append($('<td>').text(emp.role))
+  row.append($('<td>').text(emp.rate))
+
+  var next = $('<td>')
+  var away = $('<td>')
+  row.append(next)
+  row.append(away)
+  row.on('click', removeRow)
+
+  $("#train-table > tbody").append(row)
+
+  updateValues()
+  setInterval(updateValues, 1000)
+
+  function updateValues () {
+    // Update times every second
+    var time = calculateNext(emp.start, emp.rate)
+    next.text(time.format('HH:mm a'))
+    away.text(moment().to(time))
+  }
+
+  function removeRow () {
+    snap.ref.remove()
+    row.remove()
+  }
+}
+
+function calculateNext (timestamp, rate) {
+  var now = moment();
+  var start = moment.unix(timestamp, "X");
+
+  if (start.isValid()) {
+    var next = moment()
+    .hour(start.hour())
+    .minutes(start.minutes())
+    .seconds(0);
+
+    while (next.isBefore(now)) {
+      next.add(rate, "minutes");
+    }
+
+    return next
+  }
+  return false
+}
